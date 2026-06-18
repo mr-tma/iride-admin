@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IRide Admin — Status Board</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'DM Sans',system-ui,sans-serif;background:#F5F7FB;color:#0F1D3D;min-height:100vh}
+button{cursor:pointer;font-family:inherit}
+:root{
+  --navy:#1A2A5E;--navymid:#2B4C9B;--steel:#3D6BAE;--sky:#5B9BD5;--skylight:#C4DCF0;
+  --white:#FFFFFF;--off:#F5F7FB;--lgray:#E8EDF6;--mgray:#8899B8;--dark:#0F1D3D;
+  --green:#0E7A45;--greenbg:#F0FAF4;--greenbdr:#B3DFC5;
+  --amber:#B05E10;--amberbg:#FDF6EE;--amberbdr:#F0C88A;
+  --red:#A01818;--redbg:#FDF0F0;--redbdr:#E8AAAA;
+}
+.topbar{background:var(--navy);padding:0 32px}
+.topbar-inner{max-width:1280px;margin:0 auto;display:flex;justify-content:space-between;align-items:center;height:60px}
+.topbar-left{display:flex;align-items:center;gap:20px}
+.topbar-divider{width:1px;height:28px;background:rgba(255,255,255,0.12)}
+.topbar-label{color:#fff;font-size:14px;font-weight:600}
+.topbar-sub{color:var(--skylight);font-size:10px;letter-spacing:1.5px;text-transform:uppercase;font-weight:500;margin-top:2px}
+.topbar-right{display:flex;align-items:center;gap:12px}
+.topbar-date{color:rgba(255,255,255,0.5);font-size:13px}
+.refresh-btn{background:transparent;border:1px solid rgba(255,255,255,0.2);color:rgba(255,255,255,0.7);padding:7px 16px;border-radius:100px;font-size:12px;font-weight:500;transition:all 0.15s}
+.refresh-btn:hover{border-color:rgba(255,255,255,0.5);color:#fff}
+.tabnav{background:var(--white);border-bottom:1px solid var(--lgray)}
+.tabnav-inner{max-width:1280px;margin:0 auto;padding:0 32px;display:flex}
+.tab-btn{padding:16px 22px;border:none;border-bottom:2px solid transparent;font-family:inherit;font-size:13px;cursor:pointer;background:transparent;color:var(--mgray);font-weight:500;transition:all 0.15s;white-space:nowrap}
+.tab-btn.active{border-bottom-color:var(--navy);color:var(--navy);font-weight:700}
+.body{max-width:1280px;margin:0 auto;padding:28px 32px 80px}
+.page{display:none}.page.active{display:block;animation:fadeIn 0.2s ease}
+@keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+.section-head{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px;flex-wrap:wrap;gap:12px}
+.section-title{font-size:20px;font-weight:700;color:var(--navy);margin-bottom:4px;letter-spacing:-0.3px}
+.section-sub{font-size:12px;color:var(--mgray)}
+.chip-row{display:flex;gap:8px;flex-wrap:wrap}
+.stat-chip{text-align:center;background:var(--white);border:1px solid var(--lgray);border-radius:12px;padding:12px 18px;min-width:82px}
+.stat-chip .val{font-size:24px;font-weight:700;line-height:1;margin-bottom:4px;letter-spacing:-0.5px;font-variant-numeric:tabular-nums}
+.stat-chip .lbl{font-size:10px;color:var(--mgray);text-transform:uppercase;letter-spacing:1px;font-weight:600}
+.prog-wrap{display:flex;align-items:center;gap:12px;margin-bottom:20px}
+.prog-track{flex:1;height:4px;background:var(--lgray);border-radius:2px;overflow:hidden}
+.prog-fill{height:100%;border-radius:2px;background:var(--navy);transition:width 0.6s}
+.prog-label{font-size:12px;color:var(--mgray);white-space:nowrap;min-width:140px;font-weight:500}
+.van-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px;margin-bottom:16px}
+.van-card{background:var(--white);border:1px solid var(--lgray);border-radius:14px;overflow:hidden;display:flex;flex-direction:column;transition:all 0.15s;cursor:pointer}
+.van-card:hover{border-color:var(--skylight);box-shadow:0 2px 12px rgba(26,42,94,0.08)}
+.van-card.selected{border-color:var(--navy);box-shadow:0 0 0 3px rgba(26,42,94,0.1)}
+.van-stripe{height:3px;flex-shrink:0}
+.van-inner{padding:14px 16px 16px}
+.van-toprow{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.van-name{font-size:15px;font-weight:700;color:var(--navy);letter-spacing:-0.2px}
+.van-driver{font-size:13px;color:var(--steel);margin-bottom:3px;font-weight:500}
+.van-route{font-size:12px;color:var(--mgray);margin-bottom:12px}
+.van-meta{display:flex;gap:5px;flex-wrap:wrap}
+.meta-tag{font-size:11px;padding:3px 9px;border-radius:100px;background:var(--off);border:1px solid var(--lgray);color:var(--steel);font-weight:500}
+.meta-tag.warn{background:var(--amberbg);border-color:var(--amberbdr);color:var(--amber)}
+.van-note{margin-top:10px;font-size:12px;color:var(--amber);background:var(--amberbg);border-radius:8px;padding:7px 11px}
+.van-pending{font-size:12px;color:var(--mgray);font-style:italic}
+.pill{font-size:11px;font-weight:600;padding:3px 10px;border-radius:100px;white-space:nowrap}
+.pill-ok{background:var(--greenbg);color:var(--green);border:1px solid var(--greenbdr)}
+.pill-warn{background:var(--amberbg);color:var(--amber);border:1px solid var(--amberbdr)}
+.pill-pending{background:#F0F1F6;color:#6B7599;border:1px solid var(--lgray)}
+.detail-panel{background:var(--white);border:1px solid var(--lgray);border-radius:16px;overflow:hidden;box-shadow:0 8px 32px rgba(26,42,94,0.10);margin-bottom:20px}
+.detail-head{background:var(--navy);padding:18px 22px;display:flex;justify-content:space-between;align-items:center}
+.detail-van{font-size:18px;font-weight:700;color:#fff;letter-spacing:-0.3px}
+.detail-route{font-size:12px;color:rgba(255,255,255,0.5);margin-top:2px}
+.close-btn{background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.15);color:rgba(255,255,255,0.7);width:30px;height:30px;border-radius:50%;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center}
+.detail-body{padding:20px 22px}
+.detail-row{display:flex;align-items:flex-start;gap:12px;padding:11px 0;border-bottom:1px solid var(--off)}
+.detail-icon{font-size:15px;width:22px;flex-shrink:0}
+.detail-lbl{font-size:10px;color:var(--mgray);width:100px;text-transform:uppercase;letter-spacing:1px;flex-shrink:0;padding-top:3px;font-weight:600}
+.detail-val{font-size:14px;color:var(--dark)}
+.rider-table{margin-top:16px;border-radius:10px;overflow:hidden;border:1px solid var(--lgray)}
+.rider-head{font-size:10px;color:var(--mgray);text-transform:uppercase;letter-spacing:1.2px;padding:9px 14px;border-bottom:1px solid var(--lgray);font-weight:600;background:var(--off)}
+.rider-row{display:flex;justify-content:space-between;padding:10px 14px;border-bottom:1px solid var(--off);font-size:13px}
+.s-both{color:var(--navy);font-weight:600}.s-am{color:var(--steel);font-weight:600}.s-pm{color:#4A6FA5;font-weight:600}.s-out{color:var(--mgray)}
+.timeline{display:flex;flex-direction:column;gap:6px;margin-top:24px}
+.tl-label{font-size:11px;color:var(--mgray);text-transform:uppercase;letter-spacing:1.5px;font-weight:700;margin-bottom:10px}
+.tl-row{display:flex;align-items:center;gap:14px}
+.tl-time{width:72px;font-size:12px;color:var(--mgray);text-align:right;font-weight:500;flex-shrink:0;font-variant-numeric:tabular-nums}
+.tl-dot{width:8px;height:8px;border-radius:50%;background:var(--navy);flex-shrink:0}
+.tl-dot.pending{background:transparent;border:1.5px dashed var(--mgray)}
+.tl-card{flex:1;display:flex;align-items:center;gap:10px;background:var(--white);border:1px solid var(--lgray);border-radius:10px;padding:10px 14px;font-size:13px}
+.tl-card.p{background:var(--off);border-style:dashed;color:var(--mgray)}
+.tl-van{font-weight:700;color:var(--navy);min-width:52px}
+.tl-driver{color:var(--steel);flex:1}
+.tl-riders{color:var(--mgray);font-size:12px}
+.loading-bar{background:var(--amberbg);border:1px solid var(--amberbdr);border-radius:12px;padding:14px 18px;margin-bottom:20px;display:flex;align-items:center;gap:12px;font-size:14px;color:var(--amber);font-weight:500}
+.spinner{width:16px;height:16px;border:2px solid rgba(176,94,16,0.2);border-top-color:var(--amber);border-radius:50%;animation:spin 0.8s linear infinite;flex-shrink:0}
+@keyframes spin{to{transform:rotate(360deg)}}
+/* Mileage table */
+.miles-table{width:100%;border-collapse:collapse;background:var(--white);border-radius:14px;overflow:hidden;border:1px solid var(--lgray)}
+.miles-table th{background:var(--navy);color:rgba(255,255,255,0.7);font-size:11px;text-transform:uppercase;letter-spacing:1px;padding:12px 16px;text-align:left;font-weight:600}
+.miles-table td{padding:12px 16px;font-size:13px;border-bottom:1px solid var(--lgray);font-variant-numeric:tabular-nums}
+.miles-table tr:nth-child(even) td{background:var(--off)}
+.miles-table tr.total-row td{background:var(--navy);color:#fff;font-weight:700}
+</style>
+</head>
+<body>
+
+<script>
+const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTPcBnIcQk0V4ZtKOaSTy-RUbKs1WlLXTFn1Dr7JcjifgHEpxgPdizbnXSaGPB8NldKB04Kq9NTdZ1L/pub?gid=0&single=true&output=csv";
+
+const VANS = [
+  {id:"Van 5",  route:"Stevensville",        driver:"Robert Johnson"},
+  {id:"Van 6",  route:"Missoula to GSK",      driver:"Eric Schile"},
+  {id:"Van 9",  route:"County Shops",         driver:"Dustin Thompson"},
+  {id:"Van 16", route:"Hamilton / Corvallis", driver:"Laura Bess"},
+  {id:"Van 17", route:"Florence",             driver:"Ron Betts"},
+  {id:"Van 18", route:"Missoula / Lolo",      driver:"Vanessa Janckila"},
+  {id:"Van 23", route:"Missoula / Lolo",      driver:"Eric Schile"},
+];
+
+let submissions = {};
+let allRecords  = [];
+let selectedVan = null;
+
+window.addEventListener("DOMContentLoaded", () => {
+  document.getElementById("topbar-date").textContent =
+    new Date().toLocaleDateString("en-US",{weekday:"short",month:"short",day:"numeric"});
+  loadData();
+});
+
+function showTab(tab,btn) {
+  document.querySelectorAll(".page").forEach(p=>p.classList.remove("active"));
+  document.querySelectorAll(".tab-btn").forEach(b=>b.classList.remove("active"));
+  document.getElementById("page-"+tab).classList.add("active");
+  btn.classList.add("active");
+  if (tab==="miles") buildMilesTable();
+}
+
+// ── CSV helpers ──
+function splitCSV(line) {
+  const result=[]; let cur="", inQ=false;
+  for (let i=0;i<line.length;i++) {
+    if (line[i]==='"'){inQ=!inQ;}
+    else if (line[i]===","&&!inQ){result.push(cur.trim());cur="";}
+    else{cur+=line[i];}
+  }
+  result.push(cur.trim()); return result;
+}
+
+function parseCSV(text) {
+  const lines = text.trim().split("\n");
+  if (lines.length<2) return [];
+  const headers = splitCSV(lines[0]);
+  return lines.slice(1).map(line => {
+    const vals=splitCSV(line), obj={};
+    headers.forEach((h,i)=>obj[h.trim()]=(vals[i]||"").trim());
+    return obj;
+  });
+}
+
+// ── Load data ──
+async function loadData() {
+  document.getElementById("daily-loading").style.display="flex";
+  try {
+    const res  = await fetch(CSV_URL+"&t="+Date.now());
+    const text = await res.text();
+    allRecords  = parseCSV(text);
+    const today = new Date().toISOString().split("T")[0];
+    submissions = {};
+    allRecords.forEach(row => {
+      const rowDate = (row["Date"]||"").trim();
+      if (rowDate!==today) return;
+      const van = (row["Van"]||"").trim();
+      if (!van) return;
+      let submittedTime="";
+      if (row["Timestamp"]) {
+        try{submittedTime=new Date(row["Timestamp"]).toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit"});}catch(e){}
+      }
+      submissions[van] = {
+        van, driver:row["Driver"]||"",
+        odometer:row["Starting Odometer"]||"",
+        milesDriven:row["Miles Driven"]||"",
+        ridersToday:row["Riders Today"]||"0",
+        ridersPresent:row["Riders Present"]||"",
+        checklistPass:row["Pre-Trip Safety"]||"Yes",
+        checklistIssues:row["Comments"]||"",
+        comments:row["Comments"]||"",
+        submittedTime,
+      };
+    });
+    document.getElementById("daily-loading").style.display="none";
+    renderDailyCards();
+  } catch(e) {
+    document.getElementById("daily-loading").innerHTML="⚠️ Could not load data: "+e.message;
+    renderDailyCards();
+  }
+}
+
+function renderDailyCards() {
+  const submitted = VANS.filter(v=>submissions[v.id]);
+  const pending   = VANS.filter(v=>!submissions[v.id]);
+  const flagged   = VANS.filter(v=>submissions[v.id]?.checklistPass==="No");
+  const riders    = submitted.reduce((n,v)=>n+(parseInt(submissions[v.id]?.ridersToday)||0),0);
+
+  document.getElementById("chip-in").textContent    = submitted.length+"/"+VANS.length;
+  document.getElementById("chip-pend").textContent  = pending.length;
+  document.getElementById("chip-flag").textContent  = flagged.length;
+  document.getElementById("chip-riders").textContent = riders;
+
+  const pct = VANS.length ? Math.round(submitted.length/VANS.length*100) : 0;
+  document.getElementById("prog-fill").style.width  = pct+"%";
+  document.getElementById("prog-label").textContent = pct+"% of fleet logged in";
+
+  const grid = document.getElementById("van-grid");
+  grid.innerHTML="";
+  VANS.forEach(van => {
+    const sub    = submissions[van.id];
+    const status = !sub?"pending":sub.checklistPass==="No"?"warn":"ok";
+    const stripe = status==="ok"?"#0E7A45":status==="warn"?"#B05E10":"#8899B8";
+    const pill   = status==="ok"
+      ?'<span class="pill pill-ok">✓ Logged In</span>'
+      :status==="warn"
+      ?'<span class="pill pill-warn">⚠ Flagged</span>'
+      :'<span class="pill pill-pending">Pending</span>';
+
+    const card = document.createElement("div");
+    card.className="van-card"+(selectedVan===van.id?" selected":"");
+    card.onclick=()=>toggleDetail(van.id);
+    card.innerHTML=`
+      <div class="van-stripe" style="background:${stripe}"></div>
+      <div class="van-inner">
+        <div class="van-toprow"><span class="van-name">${van.id}</span>${pill}</div>
+        <div class="van-driver">👤 ${van.driver}</div>
+        <div class="van-route">📍 ${van.route}</div>
+        ${sub?`
+          <div class="van-meta">
+            <span class="meta-tag">🕐 ${sub.submittedTime}</span>
+            <span class="meta-tag">👥 ${sub.ridersToday} riders</span>
+            <span class="meta-tag">🛣 ${sub.odometer ? parseInt(sub.odometer).toLocaleString() : "—"}</span>
+            ${sub.milesDriven?`<span class="meta-tag">📏 ${sub.milesDriven} mi</span>`:""}
+            ${sub.checklistPass==="No"?'<span class="meta-tag warn">⚠ Checklist</span>':""}
+          </div>
+          ${sub.comments?`<div class="van-note">💬 ${sub.comments}</div>`:""}
+        `:`<div class="van-pending">Awaiting submission…</div>`}
+      </div>`;
+    grid.appendChild(card);
+  });
+
+  // Timeline
+  const tw=document.getElementById("timeline-wrap");
+  if (submitted.length) {
+    let html=`<div class="timeline"><div class="tl-label">Submission Timeline</div>`;
+    submitted.forEach(van=>{
+      const sub=submissions[van.id];
+      html+=`<div class="tl-row">
+        <div class="tl-time">${sub.submittedTime}</div>
+        <div class="tl-dot"></div>
+        <div class="tl-card">
+          <span class="tl-van">${van.id}</span>
+          <span class="tl-driver">${sub.driver}</span>
+          <span class="tl-riders">👥 ${sub.ridersToday}</span>
+          ${sub.milesDriven?`<span class="tl-riders">📏 ${sub.milesDriven} mi</span>`:""}
+          ${sub.checklistPass==="No"?"<span>⚠️</span>":""}
+        </div></div>`;
+    });
+    if (pending.length) {
+      html+=`<div class="tl-row">
+        <div class="tl-time" style="color:var(--mgray)">Pending</div>
+        <div class="tl-dot pending"></div>
+        <div class="tl-card p">${pending.map(v=>v.id).join(" · ")} — not yet submitted</div>
+      </div>`;
+    }
+    html+="</div>";
+    tw.innerHTML=html;
+  } else { tw.innerHTML=""; }
+}
+
+function toggleDetail(vanId) {
+  if (selectedVan===vanId){closeDetail();return;}
+  selectedVan=vanId;
+  const van=VANS.find(v=>v.id===vanId);
+  const sub=submissions[vanId];
+  document.getElementById("dp-van").textContent  =vanId;
+  document.getElementById("dp-route").textContent=van.route;
+  document.getElementById("detail-panel").style.display="block";
+
+  const rows=[
+    ["👤","Driver",   sub?.driver||van.driver||"—"],
+    ["⏰","Submitted",sub?.submittedTime||"Not yet"],
+    ["🛣","Start Odo",sub?.odometer?parseInt(sub.odometer).toLocaleString()+" mi":"—"],
+    ["📏","Miles Today",sub?.milesDriven?sub.milesDriven+" mi":"—"],
+    ["👥","Riders",   sub?sub.ridersToday+" riding today":"—"],
+    ["✅","Checklist",sub?(sub.checklistPass==="Yes"?"All clear ✓":"⚠ Issues flagged"):"—",
+      sub?.checklistPass==="No"?"color:var(--amber)":"color:var(--green)"],
+    ["💬","Comments", sub?.comments||"None"],
+  ];
+
+  let html=rows.map(([icon,label,val,style=""])=>`
+    <div class="detail-row">
+      <span class="detail-icon">${icon}</span>
+      <span class="detail-lbl">${label}</span>
+      <span class="detail-val" style="${style}">${val}</span>
+    </div>`).join("");
+
+  if (sub?.ridersPresent) {
+    html+=`<div class="rider-table">
+      <div class="rider-head">Riders Present</div>
+      ${sub.ridersPresent.split(",").map(r=>`
+        <div class="rider-row"><span>${r.trim()}</span></div>`).join("")}
+    </div>`;
+  } else if (!sub) {
+    html+=`<div style="margin-top:12px;background:var(--off);border:1px solid var(--lgray);border-radius:8px;padding:12px 14px;font-size:14px;color:var(--mgray)">⏳ This van has not submitted today.</div>`;
+  }
+
+  document.getElementById("dp-body").innerHTML=html;
+  document.getElementById("detail-panel").scrollIntoView({behavior:"smooth",block:"nearest"});
+  document.querySelectorAll(".van-card").forEach(c=>c.classList.remove("selected"));
+  document.querySelectorAll(".van-card .van-name").forEach(el=>{
+    if(el.textContent===vanId) el.closest(".van-card").classList.add("selected");
+  });
+}
+
+function closeDetail() {
+  selectedVan=null;
+  document.getElementById("detail-panel").style.display="none";
+  document.querySelectorAll(".van-card").forEach(c=>c.classList.remove("selected"));
+}
+
+// ── Mileage Tab ──
+function buildMilesTable() {
+  const tbody = document.getElementById("miles-body");
+  tbody.innerHTML="";
+  // Get current month
+  const now=new Date();
+  const monthStr=now.toISOString().slice(0,7); // YYYY-MM
+  // Filter records to current month
+  const monthRecords=allRecords.filter(r=>(r["Date"]||"").startsWith(monthStr));
+
+  let grandTotal=0;
+  VANS.forEach(van=>{
+    const vanRecords=monthRecords.filter(r=>(r["Van"]||"").trim()===van.id);
+    const totalMiles=vanRecords.reduce((n,r)=>n+(parseInt(r["Miles Driven"])||0),0);
+    const days=vanRecords.length;
+    const lastOdo=vanRecords.length?vanRecords[vanRecords.length-1]["Starting Odometer"]:"—";
+    grandTotal+=totalMiles;
+    const tr=document.createElement("tr");
+    tr.innerHTML=`
+      <td><strong style="color:var(--navy)">${van.id}</strong></td>
+      <td style="color:var(--steel);font-size:12px">${van.route}</td>
+      <td>${days}</td>
+      <td><strong>${totalMiles.toLocaleString()}</strong></td>
+      <td style="color:var(--mgray);font-family:'DM Mono',monospace">${lastOdo?parseInt(lastOdo).toLocaleString():"—"}</td>`;
+    tbody.appendChild(tr);
+  });
+
+  document.getElementById("miles-grand-total").textContent=grandTotal.toLocaleString();
+  document.getElementById("miles-month-label").textContent=
+    now.toLocaleDateString("en-US",{month:"long",year:"numeric"});
+}
+</script>
+
+<!-- Top bar -->
+<div class="topbar">
+  <div class="topbar-inner">
+    <div class="topbar-left">
+      <svg width="100" height="34" viewBox="0 0 148 48" fill="none">
+        <ellipse cx="15" cy="11" rx="13" ry="8" fill="#2B4C9B" stroke="#1A2A5E" stroke-width="1.2"/>
+        <text x="15" y="14.5" text-anchor="middle" font-size="5.2" font-weight="800" font-family="DM Sans,sans-serif" fill="white" letter-spacing="0.4">MRTMA</text>
+        <text x="4" y="42" font-size="40" font-weight="900" font-style="italic" font-family="Georgia,serif" fill="#1A2A5E">i</text>
+        <text x="26" y="42" font-size="38" font-weight="900" font-style="italic" font-family="Georgia,serif" fill="#2B4C9B">ride</text>
+        <text x="42" y="48" font-size="17" font-weight="700" font-style="italic" font-family="Georgia,serif" fill="#5B9BD5">vanpool</text>
+      </svg>
+      <div class="topbar-divider"></div>
+      <div>
+        <div class="topbar-label">Admin Dashboard</div>
+        <div class="topbar-sub">Status Board</div>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <button class="refresh-btn" onclick="loadData()">↻ Refresh</button>
+      <div class="topbar-date" id="topbar-date"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Tab nav -->
+<div class="tabnav">
+  <div class="tabnav-inner">
+    <button class="tab-btn active" onclick="showTab('daily',this)">📋 Today</button>
+    <button class="tab-btn" onclick="showTab('miles',this)">🛣 Monthly Miles</button>
+  </div>
+</div>
+
+<div class="body">
+
+  <!-- TODAY -->
+  <div class="page active" id="page-daily">
+    <div class="section-head">
+      <div>
+        <div class="section-title">Today's Operations</div>
+        <div class="section-sub" id="daily-sub"></div>
+      </div>
+      <div class="chip-row">
+        <div class="stat-chip"><div class="val" id="chip-in" style="color:var(--green)">—</div><div class="lbl">Logged In</div></div>
+        <div class="stat-chip"><div class="val" id="chip-pend" style="color:var(--amber)">—</div><div class="lbl">Pending</div></div>
+        <div class="stat-chip"><div class="val" id="chip-flag" style="color:var(--red)">—</div><div class="lbl">Flagged</div></div>
+        <div class="stat-chip"><div class="val" id="chip-riders" style="color:var(--navy)">—</div><div class="lbl">Riders In</div></div>
+      </div>
+    </div>
+    <div class="prog-wrap">
+      <div class="prog-track"><div class="prog-fill" id="prog-fill" style="width:0%"></div></div>
+      <div class="prog-label" id="prog-label">Loading…</div>
+    </div>
+    <div class="loading-bar" id="daily-loading">
+      <div class="spinner"></div> Loading from Google Sheets…
+    </div>
+    <div class="van-grid" id="van-grid"></div>
+    <div class="detail-panel" id="detail-panel" style="display:none">
+      <div class="detail-head">
+        <div><div class="detail-van" id="dp-van"></div><div class="detail-route" id="dp-route"></div></div>
+        <button class="close-btn" onclick="closeDetail()">✕</button>
+      </div>
+      <div class="detail-body" id="dp-body"></div>
+    </div>
+    <div id="timeline-wrap"></div>
+  </div>
+
+  <!-- MONTHLY MILES -->
+  <div class="page" id="page-miles">
+    <div class="section-head">
+      <div>
+        <div class="section-title">Monthly Miles — <span id="miles-month-label"></span></div>
+        <div class="section-sub">Calculated automatically from daily odometer readings</div>
+      </div>
+    </div>
+    <table class="miles-table">
+      <thead>
+        <tr>
+          <th>Van</th>
+          <th>Route</th>
+          <th>Days Run</th>
+          <th>Total Miles</th>
+          <th>Last Odometer</th>
+        </tr>
+      </thead>
+      <tbody id="miles-body"></tbody>
+      <tfoot>
+        <tr class="total-row">
+          <td colspan="3">FLEET TOTAL</td>
+          <td id="miles-grand-total">—</td>
+          <td></td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+
+</div>
+
+</body>
+</html>
