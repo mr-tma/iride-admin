@@ -374,7 +374,15 @@ function buildMilesTable() {
   // Get current month
   const now=new Date();
   const selMonth=document.getElementById("miles-month-select")?.value||now.toISOString().slice(0,7);
-  const monthRecords=allRecords.filter(r=>(r["Date"]||"").startsWith(selMonth));
+  // Normalize date to YYYY-MM for comparison, handling both YYYY-MM-DD and YYYY-M-D formats
+  const monthRecords=allRecords.filter(r=>{
+    const raw=(r["Date"]||"").trim();
+    if (!raw) return false;
+    const d=new Date(raw);
+    if (isNaN(d)) return raw.startsWith(selMonth);
+    const normalized=d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0");
+    return normalized===selMonth;
+  });
 
   let grandTotal=0;
   VANS.forEach(van=>{
