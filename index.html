@@ -123,6 +123,20 @@ let selectedVan = null;
 window.addEventListener("DOMContentLoaded", () => {
   document.getElementById("topbar-date").textContent =
     new Date().toLocaleDateString("en-US",{weekday:"short",month:"short",day:"numeric"});
+  // Populate month selector with last 12 months
+  const sel = document.getElementById("miles-month-select");
+  if (sel) {
+    const now = new Date();
+    for (let i = 0; i < 12; i++) {
+      const d = new Date(now.getFullYear(), now.getMonth()-i, 1);
+      const val = d.toISOString().slice(0,7);
+      const label = d.toLocaleDateString("en-US",{month:"long",year:"numeric"});
+      const opt = document.createElement("option");
+      opt.value=val; opt.textContent=label;
+      if (i===0) opt.selected=true;
+      sel.appendChild(opt);
+    }
+  }
   loadData();
 });
 
@@ -132,6 +146,35 @@ function showTab(tab,btn) {
   document.getElementById("page-"+tab).classList.add("active");
   btn.classList.add("active");
   if (tab==="miles") buildMilesTable();
+  if (tab==="history") buildHistoryTable();
+}
+
+function buildHistoryTable() {
+  const tbody=document.getElementById("history-body");
+  if (!tbody) return;
+  tbody.innerHTML="";
+  const vanFilter=document.getElementById("history-van-filter")?.value||"";
+  const filtered=[...allRecords]
+    .filter(r=>!vanFilter||(r["Van"]||"").trim()===vanFilter)
+    .reverse();
+  if (filtered.length===0) {
+    tbody.innerHTML=`<tr><td colspan="8" style="text-align:center;color:var(--mgray);padding:32px;font-style:italic">No submissions yet</td></tr>`;
+    return;
+  }
+  filtered.forEach(r=>{
+    const checkPass=(r["Pre-Trip Safety"]||"Yes")==="Yes";
+    const tr=document.createElement("tr");
+    tr.innerHTML=`
+      <td style="white-space:nowrap;color:var(--mgray);font-size:12px">${r["Date"]||"—"}</td>
+      <td><strong style="color:var(--navy)">${r["Van"]||"—"}</strong></td>
+      <td>${r["Driver"]||"—"}</td>
+      <td style="font-family:'DM Mono',monospace;font-size:12px">${r["Starting Odometer"]?parseInt(r["Starting Odometer"]).toLocaleString():"—"}</td>
+      <td style="font-weight:600">${r["Miles Driven"]?Math.round(r["Miles Driven"])+" mi":"—"}</td>
+      <td>${r["Riders Today"]||"—"}</td>
+      <td style="color:${checkPass?"var(--green)":"var(--amber)"};font-weight:600">${checkPass?"✓ Pass":"⚠ Issue"}</td>
+      <td style="color:var(--mgray);font-size:12px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r["Comments"]||"—"}</td>`;
+    tbody.appendChild(tr);
+  });
 }
 
 // ── CSV helpers ──
@@ -330,14 +373,13 @@ function buildMilesTable() {
   tbody.innerHTML="";
   // Get current month
   const now=new Date();
-  const monthStr=now.toISOString().slice(0,7); // YYYY-MM
-  // Filter records to current month
-  const monthRecords=allRecords.filter(r=>(r["Date"]||"").startsWith(monthStr));
+  const selMonth=document.getElementById("miles-month-select")?.value||now.toISOString().slice(0,7);
+  const monthRecords=allRecords.filter(r=>(r["Date"]||"").startsWith(selMonth));
 
   let grandTotal=0;
   VANS.forEach(van=>{
     const vanRecords=monthRecords.filter(r=>(r["Van"]||"").trim()===van.id);
-    const totalMiles=vanRecords.reduce((n,r)=>n+(parseInt(r["Miles Driven"])||0),0);
+    const totalMiles=vanRecords.reduce((n,r)=>n+(parseFloat(r["Miles Driven"])||0),0);
     const days=vanRecords.length;
     const lastOdo=vanRecords.length?vanRecords[vanRecords.length-1]["Starting Odometer"]:"—";
     grandTotal+=totalMiles;
@@ -346,14 +388,15 @@ function buildMilesTable() {
       <td><strong style="color:var(--navy)">${van.id}</strong></td>
       <td style="color:var(--steel);font-size:12px">${van.route}</td>
       <td>${days}</td>
-      <td><strong>${totalMiles.toLocaleString()}</strong></td>
-      <td style="color:var(--mgray);font-family:'DM Mono',monospace">${lastOdo?parseInt(lastOdo).toLocaleString():"—"}</td>`;
+      <td><strong>${Math.round(totalMiles).toLocaleString()}</strong></td>
+      <td style="color:var(--mgray);font-family:'DM Mono',monospace">${lastOdo&&!isNaN(parseInt(lastOdo))?parseInt(lastOdo).toLocaleString():"—"}</td>`;
     tbody.appendChild(tr);
   });
 
-  document.getElementById("miles-grand-total").textContent=grandTotal.toLocaleString();
+  document.getElementById("miles-grand-total").textContent=Math.round(grandTotal).toLocaleString();
+  const selDate=new Date(selMonth+"-15");
   document.getElementById("miles-month-label").textContent=
-    now.toLocaleDateString("en-US",{month:"long",year:"numeric"});
+    selDate.toLocaleDateString("en-US",{month:"long",year:"numeric"});
 }
 </script>
 
@@ -385,6 +428,7 @@ function buildMilesTable() {
 <div class="tabnav">
   <div class="tabnav-inner">
     <button class="tab-btn active" onclick="showTab('daily',this)">📋 Today</button>
+    <button class="tab-btn" onclick="showTab('history',this)">📅 History</button>
     <button class="tab-btn" onclick="showTab('miles',this)">🛣 Monthly Miles</button>
   </div>
 </div>
@@ -423,6 +467,34 @@ function buildMilesTable() {
     <div id="timeline-wrap"></div>
   </div>
 
+  <!-- HISTORY -->
+  <div class="page" id="page-history">
+    <div class="section-head">
+      <div>
+        <div class="section-title">Submission History</div>
+        <div class="section-sub">All past submissions — most recent first</div>
+      </div>
+      <select id="history-van-filter" onchange="buildHistoryTable()"
+        style="padding:8px 14px;border-radius:10px;border:1px solid var(--lgray);font-family:inherit;font-size:13px;color:var(--dark);background:var(--white);cursor:pointer;outline:none">
+        <option value="">All Vans</option>
+        <option>Van 5</option><option>Van 6</option><option>Van 9</option>
+        <option>Van 16</option><option>Van 17</option><option>Van 18</option><option>Van 23</option>
+      </select>
+    </div>
+    <div style="background:var(--white);border:1px solid var(--lgray);border-radius:14px;overflow:auto">
+      <table class="miles-table" style="min-width:800px">
+        <thead>
+          <tr>
+            <th>Date</th><th>Van</th><th>Driver</th>
+            <th>Start Odo</th><th>Miles</th><th>Riders</th>
+            <th>Checklist</th><th>Comments</th>
+          </tr>
+        </thead>
+        <tbody id="history-body"></tbody>
+      </table>
+    </div>
+  </div>
+
   <!-- MONTHLY MILES -->
   <div class="page" id="page-miles">
     <div class="section-head">
@@ -430,6 +502,8 @@ function buildMilesTable() {
         <div class="section-title">Monthly Miles — <span id="miles-month-label"></span></div>
         <div class="section-sub">Calculated automatically from daily odometer readings</div>
       </div>
+      <select id="miles-month-select" onchange="buildMilesTable()"
+        style="padding:8px 14px;border-radius:10px;border:1px solid var(--lgray);font-family:inherit;font-size:13px;color:var(--dark);background:var(--white);cursor:pointer;outline:none"></select>
     </div>
     <table class="miles-table">
       <thead>
